@@ -64,6 +64,8 @@ class PrometheusInstrumentatorMiddleware:
         ),
         latency_lowr_buckets: Sequence[Union[float, str]] = (0.1, 0.5, 1),
         registry: CollectorRegistry = REGISTRY,
+        application : str = 'default_application',
+        instance : str = 'default_instance'
     ) -> None:
         self.app = app
 
@@ -82,6 +84,9 @@ class PrometheusInstrumentatorMiddleware:
 
         self.excluded_handlers = [re.compile(path) for path in excluded_handlers]
         self.body_handlers = [re.compile(path) for path in body_handlers]
+
+        self.application = application
+        self.instance = instance
 
         if instrumentations:
             self.instrumentations = instrumentations
@@ -203,7 +208,8 @@ class PrometheusInstrumentatorMiddleware:
                 response = Response(
                     content=body, headers=Headers(raw=headers), status_code=status_code
                 )
-
+                application = self.application
+                instance = self.instance
                 info = metrics.Info(
                     request=request,
                     response=response,
@@ -212,6 +218,8 @@ class PrometheusInstrumentatorMiddleware:
                     modified_status=status,
                     modified_duration=duration,
                     modified_duration_without_streaming=duration_without_streaming,
+                    application=application,
+                    instance=instance
                 )
 
                 for instrumentation in self.instrumentations:

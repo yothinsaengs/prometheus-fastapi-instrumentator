@@ -226,6 +226,8 @@ class PrometheusFastApiInstrumentator:
             latency_highr_buckets=latency_highr_buckets,
             latency_lowr_buckets=latency_lowr_buckets,
             registry=self.registry,
+            application = app.application,
+            instance = app.instance,
         )
         return self
 

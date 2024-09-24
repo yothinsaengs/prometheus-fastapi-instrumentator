@@ -27,6 +27,8 @@ class Info:
         modified_handler: str,
         modified_status: str,
         modified_duration: float,
+        application : str = 'default_application',
+        instance : str = 'default_instance',
         modified_duration_without_streaming: float = 0.0,
     ):
         """Creates Info object that is used for instrumentation functions.
@@ -54,6 +56,8 @@ class Info:
         self.modified_status = modified_status
         self.modified_duration = modified_duration
         self.modified_duration_without_streaming = modified_duration_without_streaming
+        self.application = application
+        self.instance = instance
 
 
 def _build_label_attribute_names(
@@ -76,8 +80,8 @@ def _build_label_attribute_names(
             `Info` object. Done like this to enable dynamic on / off of labels.
     """
 
-    label_names = []
-    info_attribute_names = []
+    label_names = ["application", "instance"]
+    info_attribute_names = ["application", "instance"] 
 
     if should_include_handler:
         label_names.append("handler")
@@ -549,7 +553,8 @@ def requests(
                 labelnames=label_names,
                 namespace=metric_namespace,
                 subsystem=metric_subsystem,
-                registry=registry,
+                registry=registry
+                ,
             )
         else:
             METRIC = Counter(
@@ -673,6 +678,8 @@ def default(
             name="http_requests_total",
             documentation="Total number of requests by method, status and handler.",
             labelnames=(
+                "application",
+                "instance",
                 "method",
                 "status",
                 "handler",
@@ -689,7 +696,7 @@ def default(
                 "Only value of header is respected. Otherwise ignored. "
                 "No percentile calculated. "
             ),
-            labelnames=("handler",),
+            labelnames=("application", "instance", "handler",),
             namespace=metric_namespace,
             subsystem=metric_subsystem,
             registry=registry,
@@ -702,7 +709,7 @@ def default(
                 "Only value of header is respected. Otherwise ignored. "
                 "No percentile calculated. "
             ),
-            labelnames=("handler",),
+            labelnames=("application", "instance", "handler",),
             namespace=metric_namespace,
             subsystem=metric_subsystem,
             registry=registry,
@@ -715,6 +722,10 @@ def default(
                 "Made for more accurate percentile calculations. "
             ),
             buckets=latency_highr_buckets,
+            labelnames=(
+                "application",
+                "instance",
+            ),
             namespace=metric_namespace,
             subsystem=metric_subsystem,
             registry=registry,
@@ -728,6 +739,8 @@ def default(
             ),
             buckets=latency_lowr_buckets,
             labelnames=(
+                "application",
+                "instance",
                 "method",
                 "handler",
             ),
@@ -743,26 +756,29 @@ def default(
             else:
                 duration = info.modified_duration
 
-            TOTAL.labels(info.method, info.modified_status, info.modified_handler).inc()
+            TOTAL.labels(info.application, info.instance, info.method, info.modified_status, info.modified_handler).inc()
 
-            IN_SIZE.labels(info.modified_handler).observe(
+            IN_SIZE.labels(info.application, info.instance,info.modified_handler).observe(
                 int(info.request.headers.get("Content-Length", 0))
             )
 
             if info.response and hasattr(info.response, "headers"):
-                OUT_SIZE.labels(info.modified_handler).observe(
+                OUT_SIZE.labels(info.application, info.instance, info.modified_handler).observe(
                     int(info.response.headers.get("Content-Length", 0))
                 )
             else:
-                OUT_SIZE.labels(info.modified_handler).observe(0)
+                OUT_SIZE.labels(info.application, info.instance, info.modified_handler).observe(0)
 
             if not should_only_respect_2xx_for_highr or info.modified_status.startswith(
                 "2"
             ):
-                LATENCY_HIGHR.observe(duration)
+                LATENCY_HIGHR.labels(info.application, info.instance).observe(duration)
 
             LATENCY_LOWR.labels(
-                handler=info.modified_handler, method=info.method
+                application=info.application, 
+                instance=info.instance, 
+                handler=info.modified_handler,
+                method=info.method
             ).observe(duration)
 
         return instrumentation
